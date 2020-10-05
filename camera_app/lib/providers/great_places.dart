@@ -1,0 +1,63 @@
+import 'package:camera_app/helper/db_helper.dart';
+import 'package:camera_app/helper/location_helper.dart';
+import 'package:flutter/foundation.dart';
+import '../models/place.dart';
+import 'dart:io';
+
+class GreatPlaces with ChangeNotifier {
+  List<Place> _items = [];
+  List<Place> get items {
+    return [..._items];
+  }
+
+  Place findbyId(String id) {
+    return _items.firstWhere((place) => place.id == id);
+  }
+
+  Future<void> addPlace(
+    String pickedTitle,
+    File pickedImage,
+    PlaceLocation pickedLocation,
+  ) async {
+    final address = await LoactionHelper.getPlacesAddress(
+        pickedLocation.latitude, pickedLocation.longitude);
+    final updatedLocation = PlaceLocation(
+      latitude: pickedLocation.latitude,
+      longitude: pickedLocation.longitude,
+      address: address,
+    );
+    final newPlace = Place(
+        id: DateTime.now().toString(),
+        image: pickedImage,
+        title: pickedTitle,
+        location: updatedLocation);
+    _items.add(newPlace);
+    notifyListeners();
+    DBHelper.insert('user_places', {
+      'id': newPlace.id,
+      'title': newPlace.title,
+      'image': newPlace.image.path,
+      'loc_Lat': newPlace.location.latitude,
+      'loc_lng': newPlace.location.longitude,
+      'address': newPlace.location.address
+    });
+  }
+
+  Future<void> fetchandSetPlaces() async {
+    final dataList = await DBHelper.getData('user_places');
+    _items = dataList
+        .map(
+          (item) => Place(
+            id: item['id'],
+            title: item['title'],
+            image: File(item['image']),
+            location: PlaceLocation(
+                latitude: item['loc_lat'],
+                longitude: item['loc_lng'],
+                address: item['address']),
+          ),
+        )
+        .toList();
+    notifyListeners();
+  }
+}
